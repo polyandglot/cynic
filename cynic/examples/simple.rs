@@ -27,6 +27,24 @@ struct TestStruct {
     opt_nested: Option<Nested>,
 }
 
+impl TestStruct {
+    fn new(field_one: String, nested: Nested) -> Self {
+        TestStruct {
+            field_one,
+            nested,
+            opt_nested: None,
+        }
+    }
+
+    fn new2((field_one, nested): (String, Nested)) -> Self {
+        TestStruct {
+            field_one,
+            nested,
+            opt_nested: None,
+        }
+    }
+}
+
 #[derive(cynic::QueryFragment)]
 #[cynic(
     schema_path = "examples/simple.graphql",
@@ -36,6 +54,15 @@ struct TestStruct {
 struct Nested {
     a_string: String,
     opt_string: Option<String>,
+}
+
+impl Nested {
+    fn new(a_string: String) -> Self {
+        Nested {
+            a_string: a_string,
+            opt_string: None,
+        }
+    }
 }
 
 #[derive(cynic::QueryFragment)]
@@ -66,17 +93,117 @@ enum MyUnionType {
     Nested(Nested),
 }
 
-/*
 fn query() {
+    // Current:
+
     let query = query_dsl::Query::test_struct(selection_set::map2(
         TestStruct::new,
-        query_dsl::TestStruct::field_one(),
+        query_dsl::TestStruct::field_one(query_dsl::test_struct::FieldOneOptionalArgs::default()),
         query_dsl::TestStruct::nested(selection_set::map(
             Nested::new,
             query_dsl::Nested::a_string(),
         )),
     ));
-}*/
+
+    // With builder-style structs for args & a select function.
+    let query = query_dsl::Query::test_struct()
+        .an_arg(1)
+        .select(selection_set::map2(
+            TestStruct::new,
+            query_dsl::TestStruct::field_one(),
+            query_dsl::TestStruct::nested().select(selection_set::map(
+                Nested::new,
+                query_dsl::Nested::a_string(),
+            )),
+        ));
+
+    // Builder style & field selection macro.
+    let query = query_dsl::Query::test_struct()
+        .an_arg(1)
+        .select(selection_set::fields!(
+            query_dsl::TestStruct::field_one(),
+            query_dsl::TestStruct::nested().select(
+                selection_set::fields!(query_dsl::Nested::a_string()).construct(Nested::new)
+            )
+        ))
+        .construct(TestStruct::new);
+
+    // Builder style w/ field selection macro but prefix constructors.
+    let query = query_dsl::Query::test_struct().an_arg(1).build(
+        TestStruct::new,
+        selection_set::fields!(
+            query_dsl::TestStruct::field_one(x, y),
+            query_dsl::TestStruct::nested().build(
+                Nested::new,
+                selection_set::fields!(query_dsl::Nested::a_string())
+            )
+        ),
+    );
+
+    // Builder style w/ prefix constructors and just some tuples.
+    let query = query_dsl::Query::test_struct().an_arg(1).build(
+        TestStruct::new,
+        (
+            query_dsl::TestStruct::field_one(x, y),
+            query_dsl::TestStruct::nested().build(Nested::new, (query_dsl::Nested::a_string(),)),
+        ),
+    );
+
+    trait TN<TypeLock> {
+        type SelectionSets;
+
+        fn convert(other: Self::SelectionSets) -> Self {
+            // Handwaving a bit about how this is implemented, reckon
+            // it'd need some sort of TupleDecoder concept that has impls for
+            // all the Ns and knows how to build up a tuple by calling a series of decoders
+            // a bunch.
+            todo!()
+        }
+    }
+
+    impl<TypeLock, T> TN<TypeLock> for (T,) {
+        type SelectionSets = (cynic::SelectionSet<'static, T, TypeLock>,);
+    }
+
+    impl<TypeLock, T1, T2> TN<TypeLock> for (T1, T2) {
+        type SelectionSets = (
+            cynic::SelectionSet<'static, T1, TypeLock>,
+            cynic::SelectionSet<'static, T2, TypeLock>,
+        );
+    }
+
+    /*
+    // Testing the above
+    fn build<Tuple, Out>(f: impl Fn(Tuple) -> Out, t: Tuple) -> Out {
+        f(t)
+    }*/
+    fn build<Tuple: TN<TypeLock>, Out, TypeLock>(
+        f: impl Fn(Tuple) -> Out,
+        t: <Tuple as TN<TypeLock>>::SelectionSets,
+    ) {
+        f(Tuple::convert(t));
+    }
+
+    macro_rules! fields {
+        ($($x:expr),+ $(,)?) => (
+            ($($x),*)
+        );
+    }
+
+    build(TestStruct::new2, fields!("a", "a"));
+    build(
+        TestStruct::new2,
+        fields!(
+            query_dsl::TestStruct::field_one(
+                query_dsl::test_struct::FieldOneOptionalArgs::default()
+            ),
+            query_dsl::TestStruct::nested(selection_set::map(
+                Nested::new,
+                query_dsl::TestStruct::a_string(),
+            ))
+        ),
+    )
+}
 
 impl cynic::QueryRoot for query_dsl::TestStruct {}
 

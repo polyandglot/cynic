@@ -47,11 +47,14 @@ pub trait HasSubtype<Subtype> {}
 ///   functionality in cynic to annotate each SelectionSet it returns such
 ///   that you can't build incorrect queries.
 pub struct SelectionSet<'a, DecodesTo, TypeLock> {
-    fields: Vec<Field>,
+    // TODO: Do not keep this public
+    pub(crate) fields: Vec<Field>,
 
-    decoder: BoxDecoder<'a, DecodesTo>,
+    // TODO: Do not keep this public
+    pub(crate) decoder: BoxDecoder<'a, DecodesTo>,
 
-    phantom: PhantomData<TypeLock>,
+    // TODO: Do not keep this public
+    pub(crate) phantom: PhantomData<TypeLock>,
 }
 
 impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {

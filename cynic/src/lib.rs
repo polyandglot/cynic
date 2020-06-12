@@ -1,6 +1,6 @@
 //! # Cynic
 //!
-//! Cynic is a GraphQL query builder & data mapper for Rust.  
+//! Cynic is a GraphQL query builder & data mapper for Rust.
 //!
 //! See [the README on GitHub](https://github.com/polyandglot/cynic) for more details.
 //!
@@ -161,6 +161,7 @@ mod id;
 mod query;
 mod result;
 mod scalar;
+mod tuple_playground;
 
 pub mod selection_set;
 pub mod utils;
