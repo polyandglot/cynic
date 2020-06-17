@@ -31,3 +31,32 @@ impl crate::Scalar for Id {
         self.0.encode()
     }
 }
+
+/*
+enum MaybeBorrowed<'a, T: 'a> {
+    Borrowed(&'a T),
+    Owned(T),
+}
+
+impl<T> From<T> for MaybeBorrowed<'_, T> {
+    fn from(t: T) -> MaybeBorrowed<'static, T> {
+        MaybeBorrowed::Owned(t)
+    }
+}
+
+impl<'a, T> From<&'a T> for MaybeBorrowed<'a, T> {
+    fn from(t: &'a T) -> MaybeBorrowed<'a, T> {
+        MaybeBorrowed::Borrowed(t)
+    }
+}
+
+fn test<'a, R, T: Into<MaybeBorrowed<'a, R>>>(
+    x: impl Into<Option<T>>,
+) -> Option<MaybeBorrowed<'a, R>> {
+    x.into().map(|x| x.into()).into()
+}
+
+fn other() {
+    let x: Option<MaybeBorrowed<String>> = test("ah");
+}
+*/
