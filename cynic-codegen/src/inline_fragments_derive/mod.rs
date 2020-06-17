@@ -104,10 +104,12 @@ impl quote::ToTokens for InlineFragmentsImpl {
                 type TypeLock = #type_lock;
                 type Arguments = #arguments;
 
-                fn fragments(arguments: Self::Arguments) ->
+                fn fragments(arguments: impl AsRef<Self::Arguments>) ->
                 Vec<(String, ::cynic::SelectionSet<'static, Self, Self::TypeLock>)>
                 {
                     use ::cynic::QueryFragment;
+
+                    let arguments = arguments.as_ref();
 
                     let mut rv = vec![];
                     #(
