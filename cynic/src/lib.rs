@@ -180,7 +180,7 @@ pub trait QueryFragment {
     type SelectionSet;
     type Arguments: FragmentArguments;
 
-    fn fragment(arguments: Self::Arguments) -> Self::SelectionSet;
+    fn fragment(arguments: impl AsRef<Self::Arguments>) -> Self::SelectionSet;
     fn graphql_type() -> String;
 }
 
@@ -191,7 +191,7 @@ pub trait InlineFragments: Sized {
     fn graphql_type() -> String;
     // TODO: lifetimes on this need sorted out.
     fn fragments(
-        arguments: Self::Arguments,
+        arguments: impl AsRef<Self::Arguments>,
     ) -> Vec<(String, SelectionSet<'static, 'static, Self, Self::TypeLock>)>;
 }
 
@@ -203,7 +203,7 @@ where
     type SelectionSet = SelectionSet<'static, 'static, T, T::TypeLock>;
     type Arguments = <T as InlineFragments>::Arguments;
 
-    fn fragment(arguments: Self::Arguments) -> Self::SelectionSet {
+    fn fragment(arguments: impl AsRef<Self::Arguments>) -> Self::SelectionSet {
         selection_set::inline_fragments(Self::fragments(arguments))
     }
 
@@ -240,26 +240,28 @@ pub trait FragmentArguments: Clone {}
 
 impl FragmentArguments for () {}
 
+/*
 /// Used for converting between different argument types in a QueryFragment
 /// heirarchy.
 ///
 /// For example if an outer QueryFragment has a struct with several parameters
 /// but an inner QueryFragment needs none then we can use () as the arguments
-/// type on the inner fragments and use the blanket implementation of IntoArguments
-/// to convert to ().
+/// type on the inner fragments and use a derived FromArguments to convert to ().
 pub trait FromArguments<T> {
-    fn from_arguments(args: &T) -> Self;
+    fn from_arguments(args: T) -> Self;
 }
 
-impl<T> FromArguments<T> for T
+// TODO: Think about FromArguments - do we need it or can we use AsRef or similar...
+
+impl<'a, T> FromArguments<&'a T> for &'a T
 where
     T: Clone + FragmentArguments,
 {
-    fn from_arguments(other: &T) -> Self {
+    fn from_arguments(other: &'a T) -> Self {
         // TODO: Figure out if there's a way to avoid this clone...
-        other.clone()
+        other //.clone()
     }
-}
+}*/
 
 pub trait QueryRoot {}
 
