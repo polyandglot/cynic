@@ -57,13 +57,9 @@ impl FieldSelectionBuilder {
                 .field_type
                 .to_tokens(None, Ident::for_module("super").into());
 
-            // TODO: Ok, so this _also_ somehow needs to know the arg lifetimes.
-            // Can probably get that from self somehow here, though that'll take
-            // some reworking of things....
-
             quote! {
                 pub fn select(self) ->
-                ::cynic::selection_set::SelectionSet<'static, 'static, #field_type, super::#type_lock> {
+                ::cynic::selection_set::SelectionSet<'args, 'static, #field_type, super::#type_lock> {
                     #[allow(unused_imports)]
                     use ::cynic::selection_set::{string, integer, float, boolean};
 
@@ -77,7 +73,7 @@ impl FieldSelectionBuilder {
                 .as_type_lock(Ident::for_module("super").into());
 
             quote! {
-                pub fn select<'args, 'decoder, T: 'decoder + Send + Sync>(
+                pub fn select<'decoder, T: 'decoder + Send + Sync>(
                     self,
                     fields: ::cynic::selection_set::SelectionSet<'args, 'decoder, T, #argument_type_lock>
                 ) -> ::cynic::selection_set::SelectionSet<'args, 'decoder, #decodes_to, super::#type_lock>
@@ -125,20 +121,18 @@ impl quote::ToTokens for FieldSelectionBuilder {
         let select_func = self.select_function_tokens();
 
         tokens.append_all(quote! {
-            pub struct #name {
-                // TODO: Not 'static
-                args: Vec<::cynic::Argument<'static>>
+            pub struct #name<'args> {
+                args: Vec<::cynic::Argument<'args>>
             }
 
-            impl #name {
-                // TODO: Not 'static
-                pub(super) fn new(args: Vec<::cynic::Argument<'static>>) -> Self {
+            impl<'args> #name<'args> {
+                pub(super) fn new(args: Vec<::cynic::Argument<'args>>) -> Self {
                     #name { args }
                 }
 
                 #(
                     pub fn #argument_names #argument_generics(
-                        mut self, #argument_names: impl ::cynic::IntoArgument<#argument_types>
+                        mut self, #argument_names: impl ::cynic::IntoArgument<'args, #argument_types>
                     ) -> Self {
                         self.args.push(
                             ::cynic::Argument::new(

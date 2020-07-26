@@ -86,9 +86,9 @@ impl quote::ToTokens for FieldSelector {
         let selection_builder = &self.selection_builder;
 
         tokens.append_all(quote! {
-            pub fn #rust_field_name<#(#generic_params, )*>(
+            pub fn #rust_field_name<'args, #(#generic_params, )*>(
                 #(#argument_defs, )*
-            ) -> #selection_builder {
+            ) -> #selection_builder<'args> {
                 #selection_builder::new(vec![
                     #(
                         ::cynic::Argument::new(
