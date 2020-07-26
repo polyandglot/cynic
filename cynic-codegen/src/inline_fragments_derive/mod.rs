@@ -100,17 +100,14 @@ impl quote::ToTokens for InlineFragmentsImpl {
         let graphql_type = proc_macro2::Literal::string(&self.graphql_type_name);
 
         tokens.append_all(quote! {
-            impl ::cynic::InlineFragments for #target_struct {
+            impl<'a> ::cynic::InlineFragments<'a> for #target_struct {
                 type TypeLock = #type_lock;
-                type Arguments = #arguments;
+                type Arguments = &'a #arguments;
 
-                fn fragments(arguments: impl AsRef<Self::Arguments>) ->
-                    // TODO: This also needs a better 'arg lifetime on it somehow
-                    Vec<(String, ::cynic::SelectionSet<'static, 'static, Self, Self::TypeLock>)>
+                fn fragments(arguments: Self::Arguments) ->
+                    Vec<(String, ::cynic::SelectionSet<'a, 'static, Self, Self::TypeLock>)>
                 {
                     use ::cynic::QueryFragment;
-
-                    let arguments = arguments.as_ref();
 
                     let mut rv = vec![];
                     #(

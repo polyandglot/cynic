@@ -176,34 +176,32 @@ pub use selection_set::SelectionSet;
 
 pub use into_argument::IntoArgument;
 
-pub trait QueryFragment {
-    type SelectionSet;
-    type Arguments: FragmentArguments;
+pub trait QueryFragment<'a> {
+    type SelectionSet: 'a;
+    type Arguments: FragmentArguments + 'a;
 
-    fn fragment(arguments: impl AsRef<Self::Arguments>) -> Self::SelectionSet;
+    fn fragment(arguments: Self::Arguments) -> Self::SelectionSet;
     fn graphql_type() -> String;
 }
 
-pub trait InlineFragments: Sized {
+pub trait InlineFragments<'a>: Sized {
     type TypeLock;
-    type Arguments: FragmentArguments;
+    type Arguments: FragmentArguments + 'a;
 
     fn graphql_type() -> String;
-    // TODO: lifetimes on this need sorted out.
     fn fragments(
-        arguments: impl AsRef<Self::Arguments>,
-    ) -> Vec<(String, SelectionSet<'static, 'static, Self, Self::TypeLock>)>;
+        arguments: Self::Arguments,
+    ) -> Vec<(String, SelectionSet<'a, 'static, Self, Self::TypeLock>)>;
 }
 
-impl<T> QueryFragment for T
+impl<'a, T> QueryFragment<'a> for T
 where
-    T: InlineFragments + Send + Sync + 'static,
+    T: InlineFragments<'a> + Send + Sync + 'static,
 {
-    // TODO: lifetimes on this need sorted out.
-    type SelectionSet = SelectionSet<'static, 'static, T, T::TypeLock>;
-    type Arguments = <T as InlineFragments>::Arguments;
+    type SelectionSet = SelectionSet<'a, 'static, T, T::TypeLock>;
+    type Arguments = <T as InlineFragments<'a>>::Arguments;
 
-    fn fragment(arguments: impl AsRef<Self::Arguments>) -> Self::SelectionSet {
+    fn fragment(arguments: Self::Arguments) -> Self::SelectionSet {
         selection_set::inline_fragments(Self::fragments(arguments))
     }
 
@@ -240,28 +238,38 @@ pub trait FragmentArguments: Clone {}
 
 impl FragmentArguments for () {}
 
+impl<T> FragmentArguments for &T where T: FragmentArguments {}
+
+// TODO: Ditch the clone from here & above
+#[derive(Clone)]
+pub struct NoArguments {}
+
 /*
+static NoArgs: NoArguments = NoArguments {};
+
+impl FragmentArguments for NoArguments {}
+*/
+
 /// Used for converting between different argument types in a QueryFragment
 /// heirarchy.
 ///
 /// For example if an outer QueryFragment has a struct with several parameters
 /// but an inner QueryFragment needs none then we can use () as the arguments
 /// type on the inner fragments and use a derived FromArguments to convert to ().
-pub trait FromArguments<T> {
-    fn from_arguments(args: T) -> Self;
+pub trait SubArguments<'a, T> {
+    fn from_arguments(&'a self) -> &'a T;
 }
 
-// TODO: Think about FromArguments - do we need it or can we use AsRef or similar...
+// TODO: Think about this SubArguments name...
 
-impl<'a, T> FromArguments<&'a T> for &'a T
+impl<'a, T> SubArguments<'a, T> for T
 where
-    T: Clone + FragmentArguments,
+    T: FragmentArguments,
 {
-    fn from_arguments(other: &'a T) -> Self {
-        // TODO: Figure out if there's a way to avoid this clone...
-        other //.clone()
+    fn from_arguments(&'a self) -> &'a T {
+        self
     }
-}*/
+}
 
 pub trait QueryRoot {}
 

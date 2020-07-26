@@ -191,7 +191,7 @@ impl quote::ToTokens for FieldSelectorCall {
         let inner_selection_tokens = match &self.style {
             SelectorCallStyle::Scalar => quote! {},
             SelectorCallStyle::QueryFragment(field_type) => quote! {
-                #field_type::fragment(args)
+                #field_type::fragment(args.from_arguments())
             },
             SelectorCallStyle::Enum(enum_type) => quote! {
                 #enum_type::select()
@@ -344,18 +344,13 @@ impl quote::ToTokens for FragmentImpl {
         let map_function = quote::format_ident!("map{}", fields.len());
 
         tokens.append_all(quote! {
-            impl ::cynic::QueryFragment for #target_struct {
-                // TODO: Need a way to figure out 'args for this...
-                // Tricky because it kinda depends what values we're taking inside
-                // the fragment fn...
-                type SelectionSet = ::cynic::SelectionSet<'static, 'static, Self, #selector_struct>;
-                type Arguments = #argument_struct;
+            impl<'a> ::cynic::QueryFragment<'a> for #target_struct {
+                type SelectionSet = ::cynic::SelectionSet<'a, 'static, Self, #selector_struct>;
+                type Arguments = &'a #argument_struct;
 
-                fn fragment(args: impl AsRef<Self::Arguments>) -> Self::SelectionSet {
+                fn fragment(args: Self::Arguments) -> Self::SelectionSet {
                     #[allow(unused_imports)]
-                    use ::cynic::{QueryFragment, Enum};
-
-                    let args = args.as_ref();
+                    use ::cynic::{QueryFragment, Enum, SubArguments};
 
                     let new = |#(#constructor_params),*| #target_struct {
                         #(#constructor_param_names),*

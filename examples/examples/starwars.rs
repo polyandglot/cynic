@@ -26,7 +26,7 @@ struct FilmArguments {
     argument_struct = "FilmArguments"
 )]
 struct FilmDirectorQuery {
-    #[cynic_arguments(id = args.id.clone())]
+    #[cynic_arguments(id = args.id.as_ref())]
     film: Option<Film>,
 }
 
@@ -51,7 +51,7 @@ fn run_query() -> cynic::GraphQLResponse<FilmDirectorQuery> {
 
 fn build_query() -> cynic::Query<'static, 'static, FilmDirectorQuery> {
     use cynic::QueryFragment;
-    cynic::Query::new(FilmDirectorQuery::fragment(FilmArguments {
+    cynic::Query::new(FilmDirectorQuery::fragment(&FilmArguments {
         id: Some("ZmlsbXM6MQ==".into()),
     }))
 }

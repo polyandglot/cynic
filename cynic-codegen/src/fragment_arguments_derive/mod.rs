@@ -13,10 +13,11 @@ pub fn fragment_arguments_derive(ast: &syn::DeriveInput) -> Result<TokenStream, 
 
         impl ::cynic::FragmentArguments for #ident {}
 
-        /*impl ::cynic::FromArguments<&#ident> for () {
-            fn from_arguments(_: &#ident) -> () {
-                ()
+        impl<'a> ::cynic::SubArguments<'a, ()> for #ident
+        {
+            fn from_arguments(&'a self) -> &'a () {
+                &()
             }
-        }*/
+        }
     })
 }
