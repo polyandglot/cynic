@@ -80,7 +80,7 @@ pub fn enum_derive_impl(
 
         Ok(quote! {
             impl ::cynic::Enum<#query_module::#enum_marker_ident> for #ident {
-                fn select() -> cynic::SelectionSet<'static, Self, ()> {
+                fn select() -> cynic::SelectionSet<'static, 'static, Self, ()> {
                     ::cynic::selection_set::string().and_then(|s| {
                         match s.as_ref() {
                             #(

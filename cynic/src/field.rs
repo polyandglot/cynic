@@ -1,18 +1,18 @@
 use crate::Argument;
 
-pub enum Field {
-    Root(Vec<Field>),
-    Leaf(String, Vec<Argument>),
-    Composite(String, Vec<Argument>, Vec<Field>),
-    InlineFragment(String, Vec<Field>),
+pub enum Field<'a> {
+    Root(Vec<Field<'a>>),
+    Leaf(String, Vec<Argument<'a>>),
+    Composite(String, Vec<Argument<'a>>, Vec<Field<'a>>),
+    InlineFragment(String, Vec<Field<'a>>),
 }
 
-impl Field {
-    pub(crate) fn query<'a>(
+impl<'a> Field<'a> {
+    pub(crate) fn query(
         self,
         indent: usize,
         indent_size: usize,
-        arguments_out: &mut Vec<Argument>,
+        arguments_out: &mut Vec<Argument<'a>>,
     ) -> String {
         match self {
             Field::Leaf(field_name, args) => {
@@ -75,8 +75,8 @@ impl Field {
 
 /// Extracts any argument values & returns a string to be used in a query.
 fn handle_field_arguments<'a>(
-    arguments: Vec<Argument>,
-    arguments_out: &mut Vec<Argument>,
+    arguments: Vec<Argument<'a>>,
+    arguments_out: &mut Vec<Argument<'a>>,
 ) -> String {
     if arguments.is_empty() {
         "".to_string()

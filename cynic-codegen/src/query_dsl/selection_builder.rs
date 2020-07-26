@@ -56,9 +56,14 @@ impl FieldSelectionBuilder {
             let field_type = self
                 .field_type
                 .to_tokens(None, Ident::for_module("super").into());
+
+            // TODO: Ok, so this _also_ somehow needs to know the arg lifetimes.
+            // Can probably get that from self somehow here, though that'll take
+            // some reworking of things....
+
             quote! {
                 pub fn select(self) ->
-                ::cynic::selection_set::SelectionSet<'static, #field_type, super::#type_lock> {
+                ::cynic::selection_set::SelectionSet<'static, 'static, #field_type, super::#type_lock> {
                     #[allow(unused_imports)]
                     use ::cynic::selection_set::{string, integer, float, boolean};
 
@@ -72,10 +77,10 @@ impl FieldSelectionBuilder {
                 .as_type_lock(Ident::for_module("super").into());
 
             quote! {
-                pub fn select<'a, T: 'a + Send + Sync>(
+                pub fn select<'args, 'decoder, T: 'decoder + Send + Sync>(
                     self,
-                    fields: ::cynic::selection_set::SelectionSet<'a, T, #argument_type_lock>
-                ) -> ::cynic::selection_set::SelectionSet<'a, #decodes_to, super::#type_lock>
+                    fields: ::cynic::selection_set::SelectionSet<'args, 'decoder, T, #argument_type_lock>
+                ) -> ::cynic::selection_set::SelectionSet<'args, 'decoder, #decodes_to, super::#type_lock>
                     {
                         ::cynic::selection_set::field(
                             #query_field_name,
@@ -121,11 +126,13 @@ impl quote::ToTokens for FieldSelectionBuilder {
 
         tokens.append_all(quote! {
             pub struct #name {
-                args: Vec<::cynic::Argument>
+                // TODO: Not 'static
+                args: Vec<::cynic::Argument<'static>>
             }
 
             impl #name {
-                pub(super) fn new(args: Vec<::cynic::Argument>) -> Self {
+                // TODO: Not 'static
+                pub(super) fn new(args: Vec<::cynic::Argument<'static>>) -> Self {
                     #name { args }
                 }
 

@@ -345,7 +345,10 @@ impl quote::ToTokens for FragmentImpl {
 
         tokens.append_all(quote! {
             impl ::cynic::QueryFragment for #target_struct {
-                type SelectionSet = ::cynic::SelectionSet<'static, Self, #selector_struct>;
+                // TODO: Need a way to figure out 'args for this...
+                // Tricky because it kinda depends what values we're taking inside
+                // the fragment fn...
+                type SelectionSet = ::cynic::SelectionSet<'static, 'static, Self, #selector_struct>;
                 type Arguments = #argument_struct;
 
                 fn fragment(args: Self::Arguments) -> Self::SelectionSet {

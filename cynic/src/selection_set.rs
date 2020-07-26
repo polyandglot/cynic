@@ -39,15 +39,15 @@ pub trait HasSubtype<Subtype> {}
 /// - `TypeLock` is used to enforce type safety.  It allows the `query_dsl`
 ///   functionality in cynic to annotate each SelectionSet it returns such
 ///   that you can't build incorrect queries.
-pub struct SelectionSet<'a, DecodesTo, TypeLock> {
-    fields: Vec<Field>,
+pub struct SelectionSet<'args, 'decoder, DecodesTo, TypeLock> {
+    fields: Vec<Field<'args>>,
 
-    pub(crate) decoder: BoxDecoder<'a, DecodesTo>,
+    pub(crate) decoder: BoxDecoder<'decoder, DecodesTo>,
 
     phantom: PhantomData<TypeLock>,
 }
 
-impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
+impl<'args, 'decoder, DecodesTo, TypeLock> SelectionSet<'args, 'decoder, DecodesTo, TypeLock> {
     /// Maps a `SelectionSet<_, DecodesTo, _>` to a `SelectionSet<_, R, _>` by applying
     /// the provided function `f` to the decoded data when decoding query results.
     ///
@@ -57,11 +57,11 @@ impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
     /// # use cynic::selection_set::{field, string};
     /// string().map(|s| s.to_lowercase());
     /// ```
-    pub fn map<F, R>(self, f: F) -> SelectionSet<'a, R, TypeLock>
+    pub fn map<F, R>(self, f: F) -> SelectionSet<'args, 'decoder, R, TypeLock>
     where
-        F: (Fn(DecodesTo) -> R) + 'a + Sync + Send,
-        DecodesTo: 'a,
-        R: 'a,
+        F: (Fn(DecodesTo) -> R) + 'decoder + Sync + Send,
+        DecodesTo: 'decoder,
+        R: 'decoder,
     {
         SelectionSet {
             fields: self.fields,
@@ -84,11 +84,11 @@ impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
     ///         _ => fail("")
     ///     });
     /// ```
-    pub fn and_then<F, R>(self, f: F) -> SelectionSet<'a, R, TypeLock>
+    pub fn and_then<F, R>(self, f: F) -> SelectionSet<'args, 'decoder, R, TypeLock>
     where
-        F: (Fn(DecodesTo) -> SelectionSet<'a, R, TypeLock>) + 'a + Sync + Send,
-        DecodesTo: 'a,
-        R: 'a,
+        F: (Fn(DecodesTo) -> SelectionSet<'args, 'decoder, R, TypeLock>) + 'decoder + Sync + Send,
+        DecodesTo: 'decoder,
+        R: 'decoder,
     {
         let boxed_func = Box::new(f);
         SelectionSet {
@@ -104,7 +104,7 @@ impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
     /// a `SelectionSet` type locked to a subtype of an interface and want to use
     /// get a `SelectionSet` compatible with a field that has the type of the
     /// interface.
-    pub fn transform_typelock<NewLock>(self) -> SelectionSet<'a, DecodesTo, NewLock>
+    pub fn transform_typelock<NewLock>(self) -> SelectionSet<'args, 'decoder, DecodesTo, NewLock>
     where
         NewLock: HasSubtype<TypeLock>,
     {
@@ -122,7 +122,11 @@ impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
 
     pub(crate) fn query_arguments_and_decoder(
         self,
-    ) -> (String, Vec<Argument>, BoxDecoder<'a, DecodesTo>) {
+    ) -> (
+        String,
+        Vec<Argument<'args>>,
+        BoxDecoder<'decoder, DecodesTo>,
+    ) {
         let mut arguments: Vec<Argument> = vec![];
         let query = self
             .fields
@@ -135,7 +139,7 @@ impl<'a, DecodesTo, TypeLock> SelectionSet<'a, DecodesTo, TypeLock> {
 }
 
 /// Creates a `SelectionSet` that will decode a `String`
-pub fn string() -> SelectionSet<'static, String, ()> {
+pub fn string() -> SelectionSet<'static, 'static, String, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::string(),
@@ -144,7 +148,7 @@ pub fn string() -> SelectionSet<'static, String, ()> {
 }
 
 /// Creates a `SelectionSet` that will decode an `i32`
-pub fn integer() -> SelectionSet<'static, i32, ()> {
+pub fn integer() -> SelectionSet<'static, 'static, i32, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::integer(),
@@ -153,7 +157,7 @@ pub fn integer() -> SelectionSet<'static, i32, ()> {
 }
 
 /// Creates a `SelectionSet` that will decode an `f64`
-pub fn float() -> SelectionSet<'static, f64, ()> {
+pub fn float() -> SelectionSet<'static, 'static, f64, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::float(),
@@ -162,7 +166,7 @@ pub fn float() -> SelectionSet<'static, f64, ()> {
 }
 
 /// Creates a `SelectionSet` that will decode a `bool`
-pub fn boolean() -> SelectionSet<'static, bool, ()> {
+pub fn boolean() -> SelectionSet<'static, 'static, bool, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::boolean(),
@@ -171,7 +175,7 @@ pub fn boolean() -> SelectionSet<'static, bool, ()> {
 }
 
 /// Creates a `SelectionSet` that will decode a type that implements `serde::Deserialize`
-pub fn serde<T>() -> SelectionSet<'static, T, ()>
+pub fn serde<T>() -> SelectionSet<'static, 'static, T, ()>
 where
     for<'de> T: serde::Deserialize<'de>,
     T: 'static + Send + Sync,
@@ -184,7 +188,7 @@ where
 }
 
 /// Creates a `SelectionSet` that will decode into a `serde_json::Value`
-pub fn json() -> SelectionSet<'static, serde_json::Value, ()> {
+pub fn json() -> SelectionSet<'static, 'static, serde_json::Value, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::json(),
@@ -193,7 +197,7 @@ pub fn json() -> SelectionSet<'static, serde_json::Value, ()> {
 }
 
 /// Creates a `SelectionSet` that will decode a type that implements `Scalar`
-pub fn scalar<S>() -> SelectionSet<'static, S, ()>
+pub fn scalar<S>() -> SelectionSet<'static, 'static, S, ()>
 where
     S: scalar::Scalar + 'static + Send + Sync,
 {
@@ -205,11 +209,11 @@ where
 }
 
 /// Creates a `SelectionSet` that decodes a Vec of `inner_selection`
-pub fn vec<'a, DecodesTo, TypeLock>(
-    inner_selection: SelectionSet<'a, DecodesTo, TypeLock>,
-) -> SelectionSet<'a, Vec<DecodesTo>, TypeLock>
+pub fn vec<'args, 'decoder, DecodesTo, TypeLock>(
+    inner_selection: SelectionSet<'args, 'decoder, DecodesTo, TypeLock>,
+) -> SelectionSet<'args, 'decoder, Vec<DecodesTo>, TypeLock>
 where
-    DecodesTo: 'a + Send + Sync,
+    DecodesTo: 'decoder + Send + Sync,
 {
     SelectionSet {
         fields: inner_selection.fields,
@@ -219,11 +223,11 @@ where
 }
 
 /// Creates a `SelectionSet` that decodes a nullable into an Option
-pub fn option<'a, DecodesTo, TypeLock>(
-    inner_selection: SelectionSet<'a, DecodesTo, TypeLock>,
-) -> SelectionSet<'a, Option<DecodesTo>, TypeLock>
+pub fn option<'args, 'decoder, DecodesTo, TypeLock>(
+    inner_selection: SelectionSet<'args, 'decoder, DecodesTo, TypeLock>,
+) -> SelectionSet<'args, 'decoder, Option<DecodesTo>, TypeLock>
 where
-    DecodesTo: 'a + Send + Sync,
+    DecodesTo: 'decoder + Send + Sync,
 {
     SelectionSet {
         fields: inner_selection.fields,
@@ -233,13 +237,13 @@ where
 }
 
 /// Selects a field from a GraphQL object, decoding it with another `SelectionSet`
-pub fn field<'a, DecodesTo, TypeLock, InnerTypeLock>(
+pub fn field<'args, 'decoder, DecodesTo, TypeLock, InnerTypeLock>(
     field_name: &str,
-    arguments: Vec<Argument>,
-    selection_set: SelectionSet<'a, DecodesTo, InnerTypeLock>,
-) -> SelectionSet<'a, DecodesTo, TypeLock>
+    arguments: Vec<Argument<'args>>,
+    selection_set: SelectionSet<'args, 'decoder, DecodesTo, InnerTypeLock>,
+) -> SelectionSet<'args, 'decoder, DecodesTo, TypeLock>
 where
-    DecodesTo: 'a,
+    DecodesTo: 'decoder,
 {
     let field = if selection_set.fields.is_empty() {
         Field::Leaf(field_name.to_string(), arguments)
@@ -258,11 +262,11 @@ where
 ///
 /// This should be provided a Vec of typenames to the selection set that should
 /// be applied if that type is found.
-pub fn inline_fragments<'a, DecodesTo, TypeLock>(
-    fragments: Vec<(String, SelectionSet<'a, DecodesTo, TypeLock>)>,
-) -> SelectionSet<'a, DecodesTo, TypeLock>
+pub fn inline_fragments<'args, 'decoder, DecodesTo, TypeLock>(
+    fragments: Vec<(String, SelectionSet<'args, 'decoder, DecodesTo, TypeLock>)>,
+) -> SelectionSet<'args, 'decoder, DecodesTo, TypeLock>
 where
-    DecodesTo: 'a + Send + Sync,
+    DecodesTo: 'decoder + Send + Sync,
 {
     let mut fields = vec![];
     let mut decoders = HashMap::new();
@@ -287,12 +291,14 @@ where
     }
 }
 
-struct FragmentDecoder<'a, DecodesTo> {
-    decoders: HashMap<String, BoxDecoder<'a, DecodesTo>>,
-    backup_decoder: Option<BoxDecoder<'a, DecodesTo>>,
+struct FragmentDecoder<'decoder, DecodesTo> {
+    decoders: HashMap<String, BoxDecoder<'decoder, DecodesTo>>,
+    backup_decoder: Option<BoxDecoder<'decoder, DecodesTo>>,
 }
 
-impl<'a, DecodesTo> json_decode::Decoder<'a, DecodesTo> for FragmentDecoder<'a, DecodesTo> {
+impl<'decoder, DecodesTo> json_decode::Decoder<'decoder, DecodesTo>
+    for FragmentDecoder<'decoder, DecodesTo>
+{
     fn decode(&self, value: &serde_json::Value) -> Result<DecodesTo, DecodeError> {
         let typename = value["__typename"].as_str().ok_or_else(|| {
             json_decode::DecodeError::MissingField("__typename".into(), value.to_string())
@@ -311,11 +317,11 @@ impl<'a, DecodesTo> json_decode::Decoder<'a, DecodesTo> for FragmentDecoder<'a, 
     }
 }
 
-pub(crate) fn query_root<'a, DecodesTo, InnerTypeLock: QueryRoot>(
-    selection_set: SelectionSet<'a, DecodesTo, InnerTypeLock>,
-) -> SelectionSet<'a, DecodesTo, ()>
+pub(crate) fn query_root<'args, 'decoder, DecodesTo, InnerTypeLock: QueryRoot>(
+    selection_set: SelectionSet<'args, 'decoder, DecodesTo, InnerTypeLock>,
+) -> SelectionSet<'args, 'decoder, DecodesTo, ()>
 where
-    DecodesTo: 'a,
+    DecodesTo: 'decoder,
 {
     SelectionSet {
         fields: vec![Field::Root(selection_set.fields)],
@@ -328,14 +334,14 @@ where
 pub use map as map1;
 
 /// Applies a function to the result of a selection.
-pub fn map<'a, F, T1, NewDecodesTo, TypeLock>(
+pub fn map<'args, 'decoder, F, T1, NewDecodesTo, TypeLock>(
     func: F,
-    param1: SelectionSet<'a, T1, TypeLock>,
-) -> SelectionSet<'a, NewDecodesTo, TypeLock>
+    param1: SelectionSet<'args, 'decoder, T1, TypeLock>,
+) -> SelectionSet<'args, 'decoder, NewDecodesTo, TypeLock>
 where
-    F: Fn(T1) -> NewDecodesTo + 'a + Send + Sync,
-    T1: 'a,
-    NewDecodesTo: 'a,
+    F: Fn(T1) -> NewDecodesTo + 'decoder + Send + Sync,
+    T1: 'decoder,
+    NewDecodesTo: 'decoder,
 {
     SelectionSet {
         phantom: PhantomData,
@@ -372,14 +378,14 @@ macro_rules! define_map {
         ///     field::<_, (), ()>("email", vec![], string()),
         /// );
         /// ```
-        pub fn $fn_name<'a, F, $($i, )+ NewDecodesTo, TypeLock>(
+        pub fn $fn_name<'args, 'decoder, F, $($i, )+ NewDecodesTo, TypeLock>(
             func: F,
-            $($i: SelectionSet<'a, $i, TypeLock>,)+
-        ) -> SelectionSet<'a, NewDecodesTo, TypeLock>
+            $($i: SelectionSet<'args, 'decoder, $i, TypeLock>,)+
+        ) -> SelectionSet<'args, 'decoder, NewDecodesTo, TypeLock>
         where
-            F: Fn($($i, )+) -> NewDecodesTo + 'a + Send + Sync,
-            $($i: 'a,)+
-            NewDecodesTo: 'a
+            F: Fn($($i, )+) -> NewDecodesTo + 'decoder + Send + Sync,
+            $($i: 'decoder,)+
+            NewDecodesTo: 'decoder
         {
             let mut fields = Vec::new();
             $(
@@ -556,9 +562,9 @@ define_map!(
 ///
 /// This is handy when used with `SelectionSet::and_then` - you can return a specific
 /// hard coded value in some case.
-pub fn succeed<'a, V>(value: V) -> SelectionSet<'a, V, ()>
+pub fn succeed<'decoder, V>(value: V) -> SelectionSet<'static, 'decoder, V, ()>
 where
-    V: Clone + Send + Sync + 'a,
+    V: Clone + Send + Sync + 'decoder,
 {
     SelectionSet {
         fields: vec![],
@@ -574,7 +580,7 @@ where
 ///
 /// See the [`SelectionSet::and_then`](cynic::selection_set::SelectionSet::and_then)
 /// docs for an example.
-pub fn fail<'a, V>(err: impl Into<String>) -> SelectionSet<'static, V, ()> {
+pub fn fail<V>(err: impl Into<String>) -> SelectionSet<'static, 'static, V, ()> {
     SelectionSet {
         fields: vec![],
         decoder: json_decode::fail(err),
@@ -639,20 +645,20 @@ mod tests {
         }
 
         impl Query {
-            pub fn test_struct<'a, T>(
-                fields: SelectionSet<'a, T, TestStruct>,
-            ) -> SelectionSet<'a, T, RootQuery>
+            pub fn test_struct<'args, 'decoder, T>(
+                fields: SelectionSet<'args, 'decoder, T, TestStruct>,
+            ) -> SelectionSet<'args, 'decoder, T, RootQuery>
             where
-                T: 'a,
+                T: 'decoder,
             {
                 field("test_struct", vec![], fields)
             }
 
-            pub fn with_args<'a, T: 'a>(
+            pub fn with_args<'decoder, T: 'decoder>(
                 required: QueryWithArgsArguments,
                 optionals: QueryWithArgsOptionals,
-                fields: SelectionSet<'a, T, NestedStruct>,
-            ) -> SelectionSet<'a, T, RootQuery> {
+                fields: SelectionSet<'static, 'decoder, T, NestedStruct>,
+            ) -> SelectionSet<'static, 'decoder, T, RootQuery> {
                 let mut args = vec![Argument::new(
                     "required_arg",
                     "String!",
@@ -672,15 +678,15 @@ mod tests {
         pub struct TestStruct;
 
         impl TestStruct {
-            pub fn field_one() -> SelectionSet<'static, String, TestStruct> {
+            pub fn field_one() -> SelectionSet<'static, 'static, String, TestStruct> {
                 field("field_one", vec![], string())
             }
 
-            pub fn nested<'a, T>(
-                fields: SelectionSet<'a, T, NestedStruct>,
-            ) -> SelectionSet<'a, T, TestStruct>
+            pub fn nested<'decoder, T>(
+                fields: SelectionSet<'static, 'decoder, T, NestedStruct>,
+            ) -> SelectionSet<'static, 'decoder, T, TestStruct>
             where
-                T: 'a,
+                T: 'decoder,
             {
                 field("nested", vec![], fields)
             }
@@ -689,7 +695,7 @@ mod tests {
         pub struct NestedStruct;
 
         impl NestedStruct {
-            pub fn a_string() -> SelectionSet<'static, String, NestedStruct> {
+            pub fn a_string() -> SelectionSet<'static, 'static, String, NestedStruct> {
                 field("a_string", vec![], string())
             }
         }

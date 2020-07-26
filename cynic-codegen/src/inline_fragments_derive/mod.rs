@@ -105,7 +105,8 @@ impl quote::ToTokens for InlineFragmentsImpl {
                 type Arguments = #arguments;
 
                 fn fragments(arguments: Self::Arguments) ->
-                Vec<(String, ::cynic::SelectionSet<'static, Self, Self::TypeLock>)>
+                    // TODO: This also needs a better 'arg lifetime on it somehow
+                    Vec<(String, ::cynic::SelectionSet<'static, 'static, Self, Self::TypeLock>)>
                 {
                     use ::cynic::QueryFragment;
 

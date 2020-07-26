@@ -189,16 +189,18 @@ pub trait InlineFragments: Sized {
     type Arguments: FragmentArguments;
 
     fn graphql_type() -> String;
+    // TODO: lifetimes on this need sorted out.
     fn fragments(
         arguments: Self::Arguments,
-    ) -> Vec<(String, SelectionSet<'static, Self, Self::TypeLock>)>;
+    ) -> Vec<(String, SelectionSet<'static, 'static, Self, Self::TypeLock>)>;
 }
 
 impl<T> QueryFragment for T
 where
     T: InlineFragments + Send + Sync + 'static,
 {
-    type SelectionSet = SelectionSet<'static, T, T::TypeLock>;
+    // TODO: lifetimes on this need sorted out.
+    type SelectionSet = SelectionSet<'static, 'static, T, T::TypeLock>;
     type Arguments = <T as InlineFragments>::Arguments;
 
     fn fragment(arguments: Self::Arguments) -> Self::SelectionSet {
@@ -218,7 +220,7 @@ pub type SerializeError = Box<dyn std::error::Error>;
 /// definition back into it's GraphQL enum.  Generally this will be some
 /// type generated in the GQL code.
 pub trait Enum<TypeLock>: Sized {
-    fn select() -> SelectionSet<'static, Self, ()>;
+    fn select() -> SelectionSet<'static, 'static, Self, ()>;
 }
 
 /// A trait for GraphQL input objects.
