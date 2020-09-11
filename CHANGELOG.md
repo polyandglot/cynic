@@ -48,6 +48,7 @@ all APIs might be changed.
 - `Query` has been renamed to `Operation` to make it clear it's used for both
   queries & mutations.
 - `Query::new` is now `Operation::query`
+- Renamed `define_into_argument_for_scalar` to `define_into_argument_coercions`
 
 ### New Features
 
