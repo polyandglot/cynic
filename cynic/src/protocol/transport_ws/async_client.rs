@@ -42,7 +42,7 @@ impl AsyncWebsocketClient {
     {
         // TODO: actual error handling, ditch unwraps
         stream
-            .send(json_message(ConnectionInit::new()))
+            .send(json_message(ConnectionInit::new()).unwrap())
             .await
             .unwrap();
 
@@ -98,14 +98,18 @@ impl AsyncWebsocketClient {
         &mut self,
         op: StreamingOperation<'a, T>,
     ) -> impl Stream<Item = GraphQLResponse<T>> + 'a {
+        // TODO: no unwraps
         let id = Uuid::new_v4();
         let (sender, receiver) = mpsc::channel(SUBSCRIPTION_BUFFER_SIZE);
+
+        // TODO: THink I need to move operations map into the futures
         self.inner.operations.lock().await.insert(id, sender);
 
         let msg = json_message(super::Message::Subscribe {
             id: id.to_string(),
             payload: &op.inner,
-        });
+        })
+        .unwrap();
 
         self.sender_sink.send(msg).await.unwrap();
 
@@ -145,32 +149,41 @@ async fn receiver_loop<S>(
     shutdown.send(()).expect("Couldn't shutdown sender");
 }
 
+type BoxError = Box<dyn std::error::Error>;
+
 async fn handle_message(
     msg: Result<Message, tungstenite::Error>,
     operations: &OperationMap,
-) -> Result<(), ()> {
-    // TODO Make the unwraps into ?
-    let event = decode_message::<Event>(msg.unwrap()).unwrap();
-    let id = &Uuid::parse_str(event.id()).unwrap();
+) -> Result<(), BoxError> {
+    let event = decode_message::<Event>(msg?)?;
+    let id = &Uuid::parse_str(event.id())?;
     match event {
         Event::Next { payload, .. } => {
-            let mut sink = operations.lock().await.get(&id).unwrap().clone();
+            let mut sink = operations
+                .lock()
+                .await
+                .get(&id)
+                .ok_or("Received message for unknown subscription")?
+                .clone();
 
-            sink.send(payload).await.unwrap()
+            sink.send(payload).await?
         }
         Event::Complete { .. } => {
             println!("Stream complete");
             operations.lock().await.remove(&id);
         }
         Event::Error { payload, .. } => {
-            let mut sink = operations.lock().await.remove(&id).unwrap();
+            let mut sink = operations
+                .lock()
+                .await
+                .remove(&id)
+                .ok_or("Received error for unknown subscription")?;
 
             sink.send(GraphQLResponse {
                 data: None,
                 errors: Some(payload),
             })
-            .await
-            .unwrap();
+            .await?;
         }
     }
 
@@ -192,6 +205,7 @@ async fn sender_loop<S>(
 
     loop {
         select! {
+            // TODO: Could use select_next_some here?
             msg = message_stream.next() => {
                 if let Some(msg) = msg {
                     println!("Sending message: {:?}", msg);
@@ -224,16 +238,14 @@ struct ClientInner {
     operations: OperationMap,
 }
 
-fn json_message(payload: impl serde::Serialize) -> Message {
-    // TODO: dtich unwraps..
-    Message::text(serde_json::to_string(&payload).unwrap())
+fn json_message(payload: impl serde::Serialize) -> Result<Message, BoxError> {
+    Ok(Message::text(serde_json::to_string(&payload)?))
 }
 
-fn decode_message<T: serde::de::DeserializeOwned>(message: Message) -> Result<T, ()> {
+fn decode_message<T: serde::de::DeserializeOwned>(message: Message) -> Result<T, BoxError> {
     if let Message::Text(s) = message {
         println!("Received {}", s);
-        // TODO: no unwraps
-        Ok(serde_json::from_str::<T>(&s).unwrap())
+        Ok(serde_json::from_str::<T>(&s)?)
     } else {
         todo!()
     }
