@@ -8,7 +8,7 @@ error: This InputObject is missing these required fields: field
   --> $DIR/inputobject-guess-validation.rs:62:5
    |
 62 |     #[cynic(graphql_type = "IssueOrder")]
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |     ^
 
 error[E0277]: the trait bound `&queries::IssueOrder: IntoArgument<Option<_>>` is not satisfied
   --> $DIR/inputobject-guess-validation.rs:30:32
