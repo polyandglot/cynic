@@ -185,7 +185,6 @@ mod result;
 mod scalar;
 
 pub mod http;
-pub mod protocol;
 pub mod selection_set;
 pub mod utils;
 

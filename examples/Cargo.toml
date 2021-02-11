@@ -23,9 +23,10 @@ surf = "2.0.0"
 async-std = { version = "1.6.5", features = ["attributes"] }
 
 # Async example requirements
-async-tungstenite = { version = "0.11", features = ["async-std-runtime"] }
+async-tungstenite = { version = "0.12", features = ["async-std-runtime"] }
 async_executors = { version = "0.4", features = ["async_std"] }
 futures = "0.3"
+graphql-ws-client = { path = "/Users/graeme/src/graphql-ws-client", features = ["cynic", "async-tungstenite"] }
 
 [dev-dependencies]
 insta = "0.16.0"

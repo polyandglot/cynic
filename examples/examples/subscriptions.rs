@@ -40,8 +40,8 @@ struct BooksChangedSubscription {
 #[async_std::main]
 async fn main() {
     use async_tungstenite::tungstenite::{client::IntoClientRequest, http::HeaderValue};
-    use cynic::protocol::transport_ws::AsyncWebsocketClient;
     use futures::StreamExt;
+    use graphql_ws_client::CynicClient;
 
     let mut request = "ws://localhost:8000".into_client_request().unwrap();
     request.headers_mut().insert(
@@ -55,7 +55,9 @@ async fn main() {
 
     println!("Connected");
 
-    let mut client = AsyncWebsocketClient::new(connection, async_executors::AsyncStd)
+    let (sink, stream) = connection.split();
+
+    let mut client = CynicClient::new(stream, sink, async_executors::AsyncStd)
         .await
         .unwrap();
 
