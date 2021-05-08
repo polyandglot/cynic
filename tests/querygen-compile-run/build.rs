@@ -133,6 +133,11 @@ fn main() {
                 },
             )"#,
         ),
+        TestCase::query_norun(
+            &github_schema,
+            "tests/queries/github/inline-fragment-on-union.graphql",
+            r#"queries::IssueOrPR::build(())"#,
+        ),
     ];
 
     for case in cases {
