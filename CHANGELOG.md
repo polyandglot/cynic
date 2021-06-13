@@ -11,6 +11,30 @@ all APIs might be changed.
 
 ## Unreleased - xxxx-xx-xx
 
+## v0.14.0 - 2021-06-06
+
+### New Features
+
+- You can now `spread` a `QueryFragment` into another `QueryFragment` with the
+  `#[cynic(spread)]` field attribute.
+- The `QueryFragment` derive now supports renaming fields.
+
+### Bug Fixes
+
+- Underscore field names are now supported in schemas and for querying.
+- Field names with leading underscores will no longer have those leading
+  underscores removed.
+
+## v0.13.2 - 2021-05-16
+
+This release is only of the `cynic` crate - other crates remain at 0.13.1
+
+### Bug Fixes
+
+- This fixes a problem with JSON decoding that made it extremely inefficient
+  (particularly on larger responses).  In my benchmarking this improves
+  decoding performance 10x.
+
 ## v0.13.1 - 2021-04-26
 
 ### Bug Fixes
